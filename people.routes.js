@@ -1,0 +1,123 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const pool = require('./db');
+const { requireAuth, requireRole } = require('./auth.middleware');
+
+const router = express.Router();
+
+router.use(requireAuth, requireRole('admin'));
+
+// بيعمل user + profile مع بعض، يا الاتنين يتحفظوا يا ولا واحد
+async function createUserWithProfile(roleName, email, password, insertProfile) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const role = await client.query('SELECT role_id FROM roles WHERE role_name = $1', [roleName]);
+    const hash = await bcrypt.hash(password, 10);
+    const user = await client.query(
+      'INSERT INTO users (email, password_hash, role_id) VALUES ($1, $2, $3) RETURNING user_id',
+      [email, hash, role.rows[0].role_id]
+    );
+    const profile = await insertProfile(client, user.rows[0].user_id);
+    await client.query('COMMIT');
+    return profile;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+function handleError(err, res) {
+  if (err.code === '23505') {
+    return res.status(409).json({ error: 'Already exists (duplicate email, code or record)' });
+  }
+  if (err.code === '23503') {
+    return res.status(400).json({ error: 'A referenced id does not exist' });
+  }
+  if (err.code === '23514') {
+    return res.status(400).json({ error: 'Invalid value' });
+  }
+  console.error(err);
+  res.status(500).json({ error: 'Server error' });
+}
+
+// إضافة طالب
+router.post('/students', async (req, res) => {
+  const { email, password, student_code, student_name, level, department_id } = req.body;
+  if (!email || !password || !student_code || !student_name) {
+    return res.status(400).json({ error: 'email, password, student_code and student_name are required' });
+  }
+  try {
+    const student = await createUserWithProfile('student', email, password, async (client, userId) => {
+      const r = await client.query(
+        `INSERT INTO student_profiles (user_id, student_code, student_name, level, department_id)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [userId, student_code, student_name, level || null, department_id || null]
+      );
+      return r.rows[0];
+    });
+    res.status(201).json(student);
+  } catch (err) {
+    handleError(err, res);
+  }
+});
+
+// إضافة دكتور أو معيد
+router.post('/staff', async (req, res) => {
+  const { email, password, staff_name, staff_type, department_id } = req.body;
+  if (!email || !password || !staff_name || !['lecturer', 'TA'].includes(staff_type)) {
+    return res.status(400).json({ error: "email, password, staff_name and staff_type ('lecturer' or 'TA') are required" });
+  }
+  const roleName = staff_type === 'TA' ? 'ta' : 'lecturer';
+  try {
+    const staff = await createUserWithProfile(roleName, email, password, async (client, userId) => {
+      const r = await client.query(
+        `INSERT INTO staff_profiles (user_id, staff_name, staff_type, department_id)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [userId, staff_name, staff_type, department_id || null]
+      );
+      return r.rows[0];
+    });
+    res.status(201).json(staff);
+  } catch (err) {
+    handleError(err, res);
+  }
+});
+
+// تعيين دكتور/معيد على شعبة
+router.post('/sections/:sectionId/staff', async (req, res) => {
+  const { staff_id, staff_role } = req.body;
+  if (!staff_id || !staff_role) {
+    return res.status(400).json({ error: 'staff_id and staff_role are required' });
+  }
+  try {
+    const r = await pool.query(
+      'INSERT INTO section_staff (section_id, staff_id, staff_role) VALUES ($1, $2, $3) RETURNING *',
+      [req.params.sectionId, staff_id, staff_role]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) {
+    handleError(err, res);
+  }
+});
+
+// تسجيل طالب في شعبة
+router.post('/enrollments', async (req, res) => {
+  const { student_id, section_id } = req.body;
+  if (!student_id || !section_id) {
+    return res.status(400).json({ error: 'student_id and section_id are required' });
+  }
+  try {
+    const r = await pool.query(
+      'INSERT INTO enrollments (student_id, section_id) VALUES ($1, $2) RETURNING *',
+      [student_id, section_id]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) {
+    handleError(err, res);
+  }
+});
+
+module.exports = router;
