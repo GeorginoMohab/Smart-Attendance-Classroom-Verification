@@ -8,6 +8,7 @@ const sessionRoutes = require('./session.routes');
 const rosterRoutes = require('./roster.routes');
 const attendanceRoutes = require('./attendance.routes');
 const correctionRoutes = require('./corrections.routes');
+const reportRoutes = require('./reports.routes');
 const { requireAuth, requireRole } = require('./auth.middleware');
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/sessions', sessionRoutes);
 app.use('/sessions', rosterRoutes);
 app.use('/attendance', attendanceRoutes);
 app.use('/corrections', correctionRoutes);
+app.use('/reports', reportRoutes);
 
 app.listen(3000, () => {
   console.log('Server running on http://localhost:3000');
