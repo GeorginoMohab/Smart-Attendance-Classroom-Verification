@@ -145,3 +145,7 @@ CREATE INDEX idx_attendance_session ON attendance(session_id);
 CREATE INDEX idx_timetable_section_day ON timetable_slots(section_id, day_of_week);
 
 INSERT INTO roles (role_name) VALUES ('student'), ('lecturer'), ('ta'), ('admin'), ('auditor');
+ALTER TABLE audit_events ADD COLUMN details JSONB;
+
+CREATE UNIQUE INDEX one_pending_request_per_attendance
+ON correction_requests (attendance_id) WHERE status = 'pending';
