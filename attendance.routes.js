@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const pool = require('./db');
 const { requireAuth, requireRole } = require('./auth.middleware');
 
@@ -8,10 +9,20 @@ const router = express.Router();
 // الطلبة بس
 router.use(requireAuth, requireRole('student'));
 
+// 10 محاولات scan في الدقيقة لكل حساب طالب
+const scanLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  keyGenerator: (req) => `user-${req.user.userId}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { accepted: false, reason: 'too_many_attempts' },
+});
+
 const LATE_AFTER_MINUTES = 15;
 
 // الطالب بيعمل scan للـ QR
-router.post('/scan', async (req, res) => {
+router.post('/scan', scanLimiter, async (req, res) => {
   const { token } = req.body;
   if (!token || typeof token !== 'string') {
     return res.status(400).json({ accepted: false, reason: 'token is required' });

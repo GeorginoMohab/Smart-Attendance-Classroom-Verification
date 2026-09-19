@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('./db');
+
 const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const peopleRoutes = require('./people.routes');
@@ -10,9 +11,12 @@ const rosterRoutes = require('./roster.routes');
 const attendanceRoutes = require('./attendance.routes');
 const correctionRoutes = require('./corrections.routes');
 const reportRoutes = require('./reports.routes');
+const auditRoutes = require('./audit.routes');
+
 const { requireAuth, requireRole } = require('./auth.middleware');
 
 const app = express();
+
 app.use(express.json());
 
 app.get('/health', (req, res) => {
@@ -22,33 +26,56 @@ app.get('/health', (req, res) => {
 app.get('/db-check', async (req, res) => {
   try {
     const result = await pool.query('SELECT NOW()');
-    res.json({ db: 'connected', time: result.rows[0].now });
+    res.json({
+      db: 'connected',
+      time: result.rows[0].now
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ db: 'error', message: err.message });
+
+    res.status(500).json({
+      db: 'error',
+      message: err.message
+    });
   }
 });
 
 app.use('/auth', authRoutes);
 
 app.get('/me', requireAuth, (req, res) => {
-  res.json({ userId: req.user.userId, role: req.user.role });
+  res.json({
+    userId: req.user.userId,
+    role: req.user.role
+  });
 });
 
 app.get('/admin/ping', requireAuth, requireRole('admin'), (req, res) => {
-  res.json({ message: 'Welcome, admin' });
+  res.json({
+    message: 'Welcome, admin'
+  });
 });
 
 app.use('/admin', adminRoutes);
 app.use('/admin', peopleRoutes);
 app.use('/admin', timetableRoutes);
 app.use('/admin', importRoutes);
+
 app.use('/sessions', sessionRoutes);
 app.use('/sessions', rosterRoutes);
+
 app.use('/attendance', attendanceRoutes);
+
 app.use('/corrections', correctionRoutes);
+
 app.use('/reports', reportRoutes);
 
-app.listen(3000, () => {
+app.use('/audit-events', auditRoutes);
+
+app.listen(3000, (err) => {
+  if (err) {
+    console.error('Could not start the server:', err.message);
+    process.exit(1);
+  }
+
   console.log('Server running on http://localhost:3000');
 });
