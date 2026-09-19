@@ -4,6 +4,7 @@ const authRoutes = require('./auth.routes');
 const adminRoutes = require('./admin.routes');
 const peopleRoutes = require('./people.routes');
 const timetableRoutes = require('./timetable.routes');
+const importRoutes = require('./import.routes');
 const sessionRoutes = require('./session.routes');
 const rosterRoutes = require('./roster.routes');
 const attendanceRoutes = require('./attendance.routes');
@@ -41,6 +42,7 @@ app.get('/admin/ping', requireAuth, requireRole('admin'), (req, res) => {
 app.use('/admin', adminRoutes);
 app.use('/admin', peopleRoutes);
 app.use('/admin', timetableRoutes);
+app.use('/admin', importRoutes);
 app.use('/sessions', sessionRoutes);
 app.use('/sessions', rosterRoutes);
 app.use('/attendance', attendanceRoutes);
