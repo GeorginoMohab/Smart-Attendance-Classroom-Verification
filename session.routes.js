@@ -10,14 +10,15 @@ const router = express.Router();
 router.use(requireAuth, requireRole('lecturer', 'ta'));
 
 const QR_LIFETIME_SECONDS = 20;
+const TIMEZONE = process.env.APP_TIMEZONE || 'Africa/Cairo';
 
-// اليوم والتاريخ والوقت الحالي
+// اليوم والتاريخ والوقت الحالي بتوقيت القاهرة (مش توقيت الجهاز)
 function nowParts() {
   const now = new Date();
   return {
-    day: now.toLocaleDateString('en-US', { weekday: 'long' }),
-    date: now.toLocaleDateString('en-CA'),
-    time: now.toTimeString().slice(0, 8),
+    day: now.toLocaleDateString('en-US', { weekday: 'long', timeZone: TIMEZONE }),
+    date: now.toLocaleDateString('en-CA', { timeZone: TIMEZONE }),
+    time: now.toLocaleTimeString('en-GB', { timeZone: TIMEZONE, hour12: false }),
   };
 }
 
