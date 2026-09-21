@@ -604,6 +604,60 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /sessions/my-slots:
+    get:
+      tags: [Sessions]
+      summary: List my scheduled slots (lecturer/TA)
+      description: |
+        Returns the timetable slots of every section the caller is assigned to.
+        `is_today` is true when the slot's weekday is today (Cairo time).
+        `session_id` and `session_status` are filled only if a session was already opened today.
+      responses:
+        '200':
+          description: List of slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    slot_id:
+                      type: integer
+                    course_code:
+                      type: string
+                    course_name:
+                      type: string
+                    section_id:
+                      type: integer
+                    section_name:
+                      type: string
+                    room_name:
+                      type: string
+                    building:
+                      type: string
+                      nullable: true
+                    day_of_week:
+                      $ref: '#/components/schemas/DayOfWeek'
+                    start_time:
+                      type: string
+                      example: '10:00'
+                    end_time:
+                      type: string
+                      example: '12:00'
+                    session_id:
+                      type: integer
+                      nullable: true
+                    session_status:
+                      type: string
+                      nullable: true
+                      enum: [open, closed]
+                    is_today:
+                      type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /sessions/open:
     post:
       tags: [Sessions]
@@ -776,8 +830,9 @@ paths:
         15 minutes after the session was opened.
 
         Rejected scans return `accepted: false` with a `reason`:
-        `invalid_token`, `expired_token`, `session_closed` (HTTP 400), `not_enrolled` (HTTP 403) or
-        `too_many_attempts` (HTTP 429).
+        `invalid_token`, `expired_token`, `session_closed` (HTTP 400), `not_enrolled` (HTTP 403),
+        `manually_recorded` (HTTP 409, the lecturer/TA already set this student's status manually,
+        so a scan cannot change it) or `too_many_attempts` (HTTP 429).
       requestBody:
         required: true
         content:
@@ -812,6 +867,16 @@ paths:
                 oneOf:
                   - $ref: '#/components/schemas/ScanRejected'
                   - $ref: '#/components/schemas/Error'
+        '409':
+          description: The record was set manually by staff; the scan does not change it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanRejected'
+              example:
+                accepted: false
+                reason: manually_recorded
+                attendance_status: excused
         '429':
           description: Too many scan attempts (limit 10 per minute per account). Wait a minute and retry.
           content:
@@ -1476,7 +1541,7 @@ components:
         reason:
           type: string
           example: expired_token
-          description: invalid_token, expired_token, session_closed, not_enrolled, too_many_attempts, or a validation message
+          description: invalid_token, expired_token, session_closed, not_enrolled, manually_recorded, too_many_attempts, or a validation message
     MyAttendanceRecord:
       type: object
       properties:

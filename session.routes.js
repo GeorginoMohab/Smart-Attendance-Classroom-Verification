@@ -22,6 +22,35 @@ function nowParts() {
   };
 }
 
+// مواعيد الدكتور/المعيد (وهل فيه جلسة اتفتحت النهارده)
+router.get('/my-slots', async (req, res) => {
+  const { day, date } = nowParts();
+  try {
+    const result = await pool.query(
+      `SELECT ts.slot_id, c.course_code, c.course_name,
+              sec.section_id, sec.section_name,
+              r.room_name, r.building, ts.day_of_week,
+              to_char(ts.start_time, 'HH24:MI') AS start_time,
+              to_char(ts.end_time, 'HH24:MI') AS end_time,
+              s.session_id, s.status AS session_status
+       FROM timetable_slots ts
+       JOIN section_staff ss ON ss.section_id = ts.section_id
+       JOIN staff_profiles sp ON sp.staff_id = ss.staff_id AND sp.user_id = $1
+       JOIN sections sec ON sec.section_id = ts.section_id
+       JOIN courses c ON c.course_id = sec.course_id
+       JOIN rooms r ON r.room_id = ts.room_id
+       LEFT JOIN attendance_sessions s
+              ON s.slot_id = ts.slot_id AND s.session_date = $2::date
+       ORDER BY ts.start_time, c.course_code`,
+      [req.user.userId, date]
+    );
+    res.json(result.rows.map((row) => ({ ...row, is_today: row.day_of_week === day })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // فتح حصة
 router.post('/open', async (req, res) => {
   const { slot_id } = req.body;
