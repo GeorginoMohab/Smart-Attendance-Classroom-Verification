@@ -521,6 +521,7 @@ paths:
     post:
       tags: [Admin]
       summary: Schedule a section in a room on a weekday (admin)
+      description: Rejected with 409 if the room is already booked at an overlapping time on the same weekday.
       requestBody:
         required: true
         content:
@@ -554,6 +555,97 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/timetable-slots/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update a timetable slot - room, weekday or time (admin)
+      description: |
+        Send only the fields you want to change (at least one). Times use `HH:MM`.
+        Rejected with 409 if the slot has an open session right now, or if the room is already
+        booked at an overlapping time on that weekday. Every change is written to the audit log
+        with before/after values.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Timetable slot id
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                room_id:
+                  type: integer
+                day_of_week:
+                  $ref: '#/components/schemas/DayOfWeek'
+                start_time:
+                  type: string
+                  example: '09:00'
+                end_time:
+                  type: string
+                  example: '11:00'
+            example:
+              room_id: 2
+      responses:
+        '200':
+          description: Updated slot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimetableSlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Admin]
+      summary: Delete a timetable slot (admin)
+      description: |
+        Only allowed while no attendance session was ever opened for the slot (so attendance history
+        is never lost). Otherwise answers 409 and the slot should be edited instead.
+        The deletion is written to the audit log.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Timetable slot id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                    example: true
+                  slot_id:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /admin/imports/students:
     post:
       tags: [Admin]
@@ -1277,7 +1369,7 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
     Conflict:
-      description: Duplicate record
+      description: Duplicate record, or the action conflicts with the current state (e.g. room already booked, open session)
       content:
         application/json:
           schema:
