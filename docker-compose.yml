@@ -37,5 +37,15 @@ services:
     ports:
       - "8080:80"
 
+ai-service:
+    build:
+      context: ./ai-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONUNBUFFERED=1
+
+
 volumes:
   postgres_data:
