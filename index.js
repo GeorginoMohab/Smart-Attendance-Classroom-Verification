@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
@@ -14,6 +13,7 @@ const correctionRoutes = require('./corrections.routes');
 const reportRoutes = require('./reports.routes');
 const auditRoutes = require('./audit.routes');
 const flagsRoutes = require('./flags.routes');
+const studentsRoutes = require('./students.routes');
 const { requireAuth, requireRole } = require('./auth.middleware');
 
 const app = express();
@@ -55,6 +55,7 @@ app.use('/admin', importRoutes);
 app.use('/sessions', sessionRoutes);
 app.use('/sessions', rosterRoutes);
 app.use('/attendance', attendanceRoutes);
+app.use('/students', studentsRoutes);
 app.use('/corrections', correctionRoutes);
 app.use('/reports', reportRoutes);
 app.use('/audit-events', auditRoutes);

@@ -30,6 +30,7 @@ tags:
   - name: Admin
   - name: Sessions
   - name: Attendance
+  - name: Students
   - name: Corrections
   - name: Reports
   - name: Audit
@@ -995,6 +996,26 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /students/me:
+    get:
+      tags: [Students]
+      summary: The logged-in student's own profile (student)
+      description: |
+        Call it right after `POST /auth/login` when the role is `student`. The data is taken from the
+        token, so no id is sent and a student can never read another student's profile.
+      responses:
+        '200':
+          description: Own profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentMe'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /corrections:
     post:
       tags: [Corrections]
@@ -1466,6 +1487,24 @@ components:
           nullable: true
         department_id:
           type: integer
+          nullable: true
+    StudentMe:
+      type: object
+      properties:
+        student_id:
+          type: integer
+        student_code:
+          type: string
+        student_name:
+          type: string
+        email:
+          type: string
+          format: email
+        level:
+          type: integer
+          nullable: true
+        department_name:
+          type: string
           nullable: true
     StaffProfile:
       type: object
